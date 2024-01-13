@@ -27,7 +27,7 @@ function parseGurmukhiText(text) {
       }
       if (entry.includes(` –`)) {
         json?.[j]?.otherFaces?.push({
-            word:entry.split(` –`)[0]
+          word: entry.split(` –`)[0],
         });
         // if (entry.includes(`“`) || entry.includes(`”`)) {
         //     console.log("yoyo");
@@ -41,27 +41,16 @@ function parseGurmukhiText(text) {
   return json;
 }
 
-if (!num) {
-  for (i = 1; i < 36; i++) parsePage(i);
-}
-
-function parsePage(pageNumber) {
-  // Usage
-  const filePath = `text/${pageNumber}.txt`; // Replace with the path to your file
-
-  fs.readFile(filePath, "utf8", (err, data) => {
-    if (err) {
-      console.error("Error reading the file:", err);
-      return;
+async function main() {
+  if (!num) {
+    let data = [];
+    for (i = 1; i < 36; i++) {
+      const jsondata = await parsePage(i);
+      data = [...data,...jsondata]
     }
-
-    const jsonData = parseGurmukhiText(data);
-    // console.log(JSON.stringify(jsonData, null, 2));
-
-    // Optionally, you can also write this JSON to a file
     fs.writeFile(
-      `json/${pageNumber}.json`,
-      JSON.stringify(jsonData, null, 2),
+      `json/collection.json`,
+      JSON.stringify(data, null, 2),
       "utf8",
       (writeErr) => {
         if (writeErr) {
@@ -71,5 +60,39 @@ function parsePage(pageNumber) {
         }
       }
     );
+  }
+}
+
+function parsePage(pageNumber) {
+  return new Promise((resolve, reject) => {
+    // Usage
+    const filePath = `text/${pageNumber}.txt`; // Replace with the path to your file
+
+    fs.readFile(filePath, "utf8", (err, data) => {
+      if (err) {
+        console.error("Error reading the file:", err);
+        return;
+      }
+
+      const jsonData = parseGurmukhiText(data);
+      // console.log(JSON.stringify(jsonData, null, 2));
+
+      // Optionally, you can also write this JSON to a file
+      fs.writeFile(
+        `json/${pageNumber}.json`,
+        JSON.stringify(jsonData, null, 2),
+        "utf8",
+        (writeErr) => {
+          if (writeErr) {
+            console.error("Error writing JSON to file:", writeErr);
+          } else {
+            console.log("JSON data saved to output.json");
+          }
+        }
+      );
+      resolve(jsonData);
+    });
   });
 }
+
+main()
