@@ -1,98 +1,99 @@
 const fs = require("fs");
-const num = process.argv[2];
-console.log(process.argv);
+const path = require("path");
+const process = require("process");
+
+/**
+ * Parses Gurmukhi text into a structured JSON format.
+ * @param {string} text - The Gurmukhi text to be parsed.
+ * @returns {Object[]} An array of parsed entries.
+ */
 function parseGurmukhiText(text) {
-  const entries = text.split("\n");
-  const json = [];
-  let j = -1;
-  entries.forEach((entry, index) => {
-    if (entry.includes(" -")) {
-      j++;
-      json[j] = {
-        word: entry.split(" -")[0],
-        meaning: entry.split("- ").reverse()[0],
-        examples: [],
-        otherFaces: [],
-      };
-      return;
-    }
-    if (entry && !entry.includes("page")) {
-      if (entry.includes(`“`) || entry.includes(`”`)) {
-        json?.[j]?.examples?.push({ line: entry });
-      }
-      if (entry.includes(`– `)) {
-        let length = json?.[j]?.examples?.length;
-        if (json[j].examples[length - 1])
-          json[j].examples[length - 1].ref = entry;
-      }
-      if (entry.includes(` –`)) {
-        json?.[j]?.otherFaces?.push({
-          word: entry.split(` –`)[0],
-        });
-        // if (entry.includes(`“`) || entry.includes(`”`)) {
-        //     console.log("yoyo");
-        //   let length = json?.[j]?.otherFaces?.length;
+    const entries = text.split("\n");
+    const json = [];
+    let currentEntry = null;
 
-        //   json[j].otherFaces[length - 1].line = entry;
-        // }
-      }
-    }
-  });
-  return json;
-}
-
-async function main() {
-  if (!num) {
-    let data = [];
-    for (i = 1; i < 36; i++) {
-      const jsondata = await parsePage(i);
-      data = [...data,...jsondata]
-    }
-    fs.writeFile(
-      `json/collection.json`,
-      JSON.stringify(data, null, 2),
-      "utf8",
-      (writeErr) => {
-        if (writeErr) {
-          console.error("Error writing JSON to file:", writeErr);
-        } else {
-          console.log("JSON data saved to output.json");
+    entries.forEach((entry) => {
+        if (entry.includes(" -")) {
+            currentEntry = {
+                word: entry.split(" -")[0],
+                meaning: entry.split("- ").pop(),
+                examples: [],
+                otherFaces: [],
+            };
+            json.push(currentEntry);
+        } else if (entry) {
+            handleSubEntries(entry, currentEntry);
         }
-      }
-    );
-  }
-}
-
-function parsePage(pageNumber) {
-  return new Promise((resolve, reject) => {
-    // Usage
-    const filePath = `text/${pageNumber}.txt`; // Replace with the path to your file
-
-    fs.readFile(filePath, "utf8", (err, data) => {
-      if (err) {
-        console.error("Error reading the file:", err);
-        return;
-      }
-
-      const jsonData = parseGurmukhiText(data);
-      // console.log(JSON.stringify(jsonData, null, 2));
-
-      // Optionally, you can also write this JSON to a file
-      fs.writeFile(
-        `json/${pageNumber}.json`,
-        JSON.stringify(jsonData, null, 2),
-        "utf8",
-        (writeErr) => {
-          if (writeErr) {
-            console.error("Error writing JSON to file:", writeErr);
-          } else {
-            console.log("JSON data saved to output.json");
-          }
-        }
-      );
-      resolve(jsonData);
     });
-  });
+
+    return json;
 }
 
-main()
+function handleSubEntries(entry, currentEntry) {
+    if (!currentEntry) return;
+
+    if (entry.includes(`“`) || entry.includes(`”`)) {
+        currentEntry.examples.push({ line: entry });
+    }
+    if (entry.includes(`– `)) {
+        const lastExample = currentEntry.examples[currentEntry.examples.length - 1];
+        if (lastExample) lastExample.ref = entry;
+    }
+    if (entry.includes(` –`)) {
+        currentEntry.otherFaces.push({
+            word: entry.split(` –`)[0],
+        });
+    }
+}
+
+/**
+ * Reads and parses a file containing Gurmukhi text.
+ * @param {number} pageNumber - The page number to parse.
+ * @returns {Promise<Object[]>} A promise that resolves to the parsed JSON data.
+ */
+function parsePage(pageNumber) {
+    const filePath = path.join(__dirname, `text/${pageNumber}.txt`);
+
+    return new Promise((resolve, reject) => {
+        fs.readFile(filePath, "utf8", (err, data) => {
+            if (err) {
+                console.error("Error reading the file:", err);
+                reject(err);
+                return;
+            }
+
+            const jsonData = parseGurmukhiText(data);
+            resolve(jsonData);
+        });
+    });
+}
+
+/**
+ * Main function to run the script.
+ */
+async function main() {
+    const num = process.env.PAGE_NUMBER || null;
+
+    if (!num) {
+        let data = [];
+        for (let i = 1; i <= 35; i++) {
+            try {
+                const jsondata = await parsePage(i);
+                data = [...data, ...jsondata];
+            } catch (error) {
+                console.error(`Error parsing page ${i}:`, error);
+            }
+        }
+
+        const outputFile = path.join(__dirname, "json/collection.json");
+        fs.writeFile(outputFile, JSON.stringify(data, null, 2), "utf8", (writeErr) => {
+            if (writeErr) {
+                console.error("Error writing JSON to file:", writeErr);
+                return;
+            }
+            console.log("JSON data saved to collection.json");
+        });
+    }
+}
+
+main();
