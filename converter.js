@@ -12,15 +12,29 @@ function parseGurmukhiText(text) {
         word: entry.split(" -")[0],
         meaning: entry.split("- ").reverse()[0],
         examples: [],
+        otherFaces: [],
       };
       return;
     }
     if (entry && !entry.includes("page")) {
-      if (entry.includes(`“`) || entry.includes(`”`))
+      if (entry.includes(`“`) || entry.includes(`”`)) {
         json?.[j]?.examples?.push({ line: entry });
-      if (entry.includes(`– `)){
-        let length = json?.[j]?.examples?.length
-        if(json[j].examples[length-1])json[j].examples[length-1].ref = entry
+      }
+      if (entry.includes(`– `)) {
+        let length = json?.[j]?.examples?.length;
+        if (json[j].examples[length - 1])
+          json[j].examples[length - 1].ref = entry;
+      }
+      if (entry.includes(` –`)) {
+        json?.[j]?.otherFaces?.push({
+            word:entry.split(` –`)[0]
+        });
+        // if (entry.includes(`“`) || entry.includes(`”`)) {
+        //     console.log("yoyo");
+        //   let length = json?.[j]?.otherFaces?.length;
+
+        //   json[j].otherFaces[length - 1].line = entry;
+        // }
       }
     }
   });
